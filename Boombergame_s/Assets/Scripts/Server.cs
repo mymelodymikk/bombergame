@@ -1,6 +1,5 @@
 using LiteNetLib;
 using Newtonsoft.Json;
-
 //for Dictionary
 using System.Collections.Generic;
 using System.Net;
@@ -11,6 +10,7 @@ public class Server : MonoBehaviour, INetEventListener
 {
     [SerializeField] private ServerController serverController;
     [SerializeField] private CoinController coinController;
+    [SerializeField] private BombController bombController;
     public const short PORT = 9050;
     public const string KEY = "MYKEY";
     private NetManager server;
@@ -68,7 +68,7 @@ public class Server : MonoBehaviour, INetEventListener
 
     public void OnNetworkReceive(NetPeer peer, NetPacketReader reader, DeliveryMethod deliveryMethod)
     {
-        Debug.Log("OnNetworkReceive");
+        //Debug.Log("OnNetworkReceive");
         modelToObjectMapper.DeserializeToFunction(peer, reader.GetString());
     }
 
@@ -101,6 +101,12 @@ public class Server : MonoBehaviour, INetEventListener
         peerConnections.Add(id, peerConnection);
         serverController.CreatePlayer(peerConnection);
 
+        foreach (var bomb in bombController.Bombs.Values)
+        {
+            var bombModel = new BombModel { CurrnetTime = bomb.CurrentTime, Position = bomb.transform.position };
+            model.Bombs.Add(bombModel);
+        }
+
         var playerId = peerConnection.PlayerId;
         model.PlayerId = playerId;
         peerConnection.Send(model);
@@ -111,7 +117,15 @@ public class Server : MonoBehaviour, INetEventListener
         Debug.Log("OnPeerConnected");
     }
 
-    public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo) => Debug.Log("OnPeerDisconnected");
+    public void OnPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
+    {
+        Debug.Log("OnPeerDisconnected");
+        if (peer != null)
+        {
+            var peerConnection = peer.Tag as PeerConnection;
+            peerConnection?.Disconnected();
+        }
+    }
 
     public void Remove(PeerConnection peerConnection)
     {
